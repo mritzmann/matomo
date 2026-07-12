@@ -12186,6 +12186,7 @@ var __async = (__this, __arguments, generator) => {
   }
   function setupAutoClear(el, delay) {
     let timeoutId;
+    let intervalId;
     let lastValue = el.value;
     const clearValue = () => {
       el.value = "";
@@ -12197,10 +12198,28 @@ var __async = (__this, __arguments, generator) => {
     };
     const inputListener = () => resetTimer();
     const changeListener = () => resetTimer();
+    let pageHideListener;
+    const teardown = (clearField) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+      el.removeEventListener("input", inputListener);
+      el.removeEventListener("change", changeListener);
+      if (pageHideListener) {
+        window.removeEventListener("pagehide", pageHideListener);
+      }
+      delete el.dataset.autoClearEnabled;
+      delete el.onUmounted;
+      lastValue = "";
+      if (clearField) {
+        el.value = "";
+      }
+    };
+    pageHideListener = () => teardown(true);
     el.addEventListener("input", inputListener);
     el.addEventListener("change", changeListener);
     el.dataset.autoClearEnabled = "true";
-    const intervalId = setInterval(() => {
+    window.addEventListener("pagehide", pageHideListener);
+    intervalId = setInterval(() => {
       if (el.value !== lastValue) {
         lastValue = el.value;
         resetTimer();
@@ -12208,11 +12227,7 @@ var __async = (__this, __arguments, generator) => {
     }, 300);
     el.onUmounted = {
       cleanup() {
-        clearTimeout(timeoutId);
-        clearInterval(intervalId);
-        el.removeEventListener("input", inputListener);
-        el.removeEventListener("change", changeListener);
-        delete el.dataset.autoClearEnabled;
+        teardown(false);
       }
     };
   }
