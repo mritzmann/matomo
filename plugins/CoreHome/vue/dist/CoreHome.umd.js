@@ -12194,6 +12194,7 @@ var __async = (__this, __arguments, generator) => {
     const clearValue = () => {
       el.value = "";
       el.dispatchEvent(new Event("input"));
+      el.dispatchEvent(new Event("change"));
     };
     const resetTimer = () => {
       if (timeoutId) clearTimeout(timeoutId);
@@ -12223,7 +12224,7 @@ var __async = (__this, __arguments, generator) => {
     };
     pageHideListener = (event) => {
       if (event.persisted) {
-        el.value = "";
+        clearValue();
         lastValue = "";
         return;
       }
