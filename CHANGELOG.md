@@ -29,6 +29,7 @@ The Product Changelog at **[matomo.org/changelog](https://matomo.org/changelog)*
 * The `SEO` plugin has been removed, along with its `SEO` widget and the `SEO.getRank` API method.
 * One Click Update now always downloads the update archive over HTTPS. The insecure "retry over HTTP" fallback screen and the `https` request parameter of the `CoreUpdater.oneClickUpdate` action have been removed, and the `$https` parameter of `Piwik\Plugins\CoreUpdater\Updater::updatePiwik()` and `Piwik\Plugins\CoreUpdater\Updater::getArchiveUrl()` has been removed. HTTP is only used when the `force_matomo_http_request` config option is enabled.
 * Several core controller actions that return JSON now declare a native `string` return type as part of adopting the new `#[Piwik\Http\JsonResponse]` attribute. A plugin that extends one of these controllers and overrides such an action must declare a compatible `string` return type and re-declare `#[Piwik\Http\JsonResponse]` (attributes are not inherited).
+* Site content detection (used by the tracking-code setup page and consent-manager detection) now fetches the site URL over the SSRF-safe request path. It refuses targets resolving to private, loopback or reserved IP addresses, and requires the curl extension instead of falling back to the `fopen` or `socket` transports. Installations tracking intranet sites on private addresses must allowlist their ranges via the new `[General] allowed_private_egress_ranges` setting. Refusals are logged at `WARN` level.
 
 ### New APIs
 * A new `#[Piwik\Http\JsonResponse]` attribute can be applied to a plugin controller action to declare that it returns a JSON response. When present, Matomo (re-)sends the `Content-Type: application/json` header after the action has returned, so it can no longer be overwritten by output produced while the action builds its response (for example a rendered `Piwik\View`, which sends `text/html`). An action using the attribute must return the JSON string, must not send the header itself, and must not emit output (`echo`/`print`/`flush`) or call `exit`/`die` before returning — otherwise the response headers are committed first and the JSON `Content-Type` cannot be applied. The attribute is not inherited: a subclass overriding a JSON action must re-declare it. These requirements are enforced by PHPStan rules.
@@ -36,7 +37,8 @@ The Product Changelog at **[matomo.org/changelog](https://matomo.org/changelog)*
   parameter enabling an SSRF-safe request path (public-IP validation, redirect re-validation, IP pinning). Use it
   whenever the target URL derives from untrusted input, such as a site's configured URL. Requires curl.
   Installations tracking intranet sites on private addresses can allowlist their ranges via the new
-  `[General] allowed_private_egress_ranges` INI setting.
+  `[General] allowed_private_egress_ranges` INI setting. A refused target or unmet precondition throws the new
+  `Piwik\Http\EgressBlockedException`, so callers can tell a policy rejection from a transient network failure.
 * The `Http.sendHttpRequest` and `Http.sendHttpRequest.end` events pass a new `validateEgressIp` entry in their params
   array. A listener that resolves the request itself must either honour SSRF-safe semantics (public-IP-only target,
   re-validated redirects) or leave the request unhandled.
