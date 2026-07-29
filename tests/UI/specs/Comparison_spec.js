@@ -80,23 +80,26 @@ describe("Comparison", function () {
                     continue;
                 }
 
-                // Direction is encoded by the trend-icon <path> shape (apex at y=5 up, y=12 down),
-                // polarity by the evolutionBadge--positive / --negative modifier.
-                var pathEl = badge.querySelector('.evolutionTrendIcon path');
-                var pathData = pathEl ? pathEl.getAttribute('d') : '';
+                // Direction comes from the sign of the badge's own percent readout: EvolutionBadge
+                // prepends '+' for an increase and keeps the leading minus (ASCII '-' or localised
+                // U+2212) for a decrease. Polarity (good/bad) is the evolutionBadge--positive /
+                // --negative modifier, checked separately in expectEvolutionPolarity().
+                var value = badge.querySelector('.evolutionBadge__value');
+                var valueText = value ? value.textContent.trim() : '';
+                var sign = valueText.charAt(0);
+                // U+2212 is the localised minus (fi/sv/et/...); the component keeps it for decreases.
+                var localisedMinus = String.fromCharCode(0x2212);
                 var direction = 'neutral';
-                if (pathData.indexOf('L8.27344 5') !== -1) {
+                if (sign === '+') {
                     direction = 'up';
-                } else if (pathData.indexOf('L8.27344 12') !== -1) {
+                } else if (sign === '-' || sign === localisedMinus) {
                     direction = 'down';
                 }
-
-                var value = badge.querySelector('.evolutionBadge__value');
 
                 return {
                     className: badge.className,
                     direction: direction,
-                    text: value ? value.textContent.trim() : '',
+                    text: valueText,
                 };
             }
 
@@ -408,10 +411,6 @@ describe("Comparison", function () {
     it('should show evolution metrics correctly formatted in other language', async () => {
         await page.goto(visitOverviewSparklines + '&language=sv');
         await page.waitForNetworkIdle();
-        await page.evaluate(function(){
-            // replace all metric names with `metric name` to avoid test failures when metric translation changes
-            $('.sparkline-metrics').each(function(){ $(this).html($(this).find('strong').prop('outerHTML') + ' metric name') });
-        });
 
         expect(await page.screenshot({ fullPage: true })).to.matchImage('visits_overview_widget_sv');
     });
